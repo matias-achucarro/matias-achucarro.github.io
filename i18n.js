@@ -350,13 +350,36 @@
     }
   };
 
-  function getLanguage() {
+  function normalizeLanguage(language) {
+    if (typeof language !== "string" || !language.trim()) return null;
+    const languageCode = language.toLowerCase().split(/[-_]/)[0];
+    return supportedLanguages.includes(languageCode) ? languageCode : null;
+  }
+
+  function getStoredLanguage() {
     try {
       const stored = window.localStorage.getItem(storageKey);
-      return supportedLanguages.includes(stored) ? stored : "en";
+      return normalizeLanguage(stored);
     } catch (error) {
-      return "en";
+      return null;
     }
+  }
+
+  function getBrowserLanguage() {
+    const browserLanguages = Array.isArray(navigator.languages) && navigator.languages.length
+      ? navigator.languages
+      : [navigator.language];
+
+    for (const language of browserLanguages) {
+      const supportedLanguage = normalizeLanguage(language);
+      if (supportedLanguage) return supportedLanguage;
+    }
+
+    return "en";
+  }
+
+  function getLanguage() {
+    return getStoredLanguage() || getBrowserLanguage();
   }
 
   function getCopy() {
@@ -364,7 +387,7 @@
   }
 
   function setLanguage(language) {
-    const nextLanguage = supportedLanguages.includes(language) ? language : "en";
+    const nextLanguage = normalizeLanguage(language) || "en";
     try {
       window.localStorage.setItem(storageKey, nextLanguage);
     } catch (error) {
