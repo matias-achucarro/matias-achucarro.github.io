@@ -365,12 +365,26 @@
     }
   }
 
+  function getIntlLanguage() {
+    try {
+      return normalizeLanguage(Intl.DateTimeFormat().resolvedOptions().locale);
+    } catch (error) {
+      return null;
+    }
+  }
+
   function getBrowserLanguage() {
     const browserLanguages = Array.isArray(navigator.languages) && navigator.languages.length
       ? navigator.languages
       : [navigator.language];
+    const primaryBrowserLanguage = normalizeLanguage(browserLanguages[0]);
+    const intlLanguage = getIntlLanguage();
 
-    for (const language of browserLanguages) {
+    if (intlLanguage === "es" && primaryBrowserLanguage !== "es") {
+      return intlLanguage;
+    }
+
+    for (const language of [...browserLanguages, navigator.language, navigator.userLanguage, navigator.browserLanguage, intlLanguage]) {
       const supportedLanguage = normalizeLanguage(language);
       if (supportedLanguage) return supportedLanguage;
     }
