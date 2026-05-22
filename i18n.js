@@ -42,6 +42,8 @@
         projects: "Projects",
         contact: "Contact",
         languageLabel: "Language selector",
+        menuOpen: "Open navigation menu",
+        menuClose: "Close navigation menu",
         english: "English",
         spanish: "Spanish"
       },
@@ -199,6 +201,8 @@
         projects: "Proyectos",
         contact: "Contacto",
         languageLabel: "Selector de idioma",
+        menuOpen: "Abrir menu de navegacion",
+        menuClose: "Cerrar menu de navegacion",
         english: "Inglés",
         spanish: "Español"
       },
@@ -448,6 +452,7 @@
     const wrapper = document.createElement("div");
     wrapper.className = "language-switch";
     wrapper.setAttribute("data-language-switch", "");
+    wrapper.setAttribute("role", "group");
     wrapper.innerHTML = `
       <button type="button" data-lang-option="en">EN</button>
       <span aria-hidden="true">|</span>
@@ -458,6 +463,111 @@
     wrapper.addEventListener("click", (event) => {
       const button = event.target.closest("[data-lang-option]");
       if (button) setLanguage(button.dataset.langOption);
+    });
+  }
+
+  function setupMobileNavigation() {
+    const nav = document.querySelector(".nav");
+    const navLinks = nav?.querySelector(".nav-links");
+    if (!nav || !navLinks) return;
+
+    if (nav.dataset.mobileNavReady === "true") {
+      syncMobileNavigation();
+      return;
+    }
+
+    nav.dataset.mobileNavReady = "true";
+    nav.classList.add("is-mobile-enhanced");
+    if (!navLinks.id) navLinks.id = "portfolio-mobile-nav";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "mobile-nav-toggle";
+    toggle.setAttribute("aria-controls", navLinks.id);
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.innerHTML = `
+      <span class="mobile-nav-toggle-line" aria-hidden="true"></span>
+      <span class="mobile-nav-toggle-line" aria-hidden="true"></span>
+      <span class="mobile-nav-toggle-line" aria-hidden="true"></span>
+    `;
+    nav.insertBefore(toggle, navLinks);
+
+    const mobileQuery = window.matchMedia("(max-width: 760px)");
+
+    function setMobileMenuOpen(open) {
+      const shouldOpen = Boolean(open) && mobileQuery.matches;
+      nav.classList.toggle("is-open", shouldOpen);
+      toggle.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+      syncState();
+      updateMobileNavigationLabels();
+    }
+
+    function syncState() {
+      const isMobile = mobileQuery.matches;
+      const isOpen = isMobile && nav.classList.contains("is-open");
+      navLinks.setAttribute("aria-hidden", isMobile && !isOpen ? "true" : "false");
+      navLinks.querySelectorAll("a, button").forEach((item) => {
+        if (isMobile && !isOpen) {
+          item.setAttribute("tabindex", "-1");
+        } else {
+          item.removeAttribute("tabindex");
+        }
+      });
+      if (!isMobile) {
+        nav.classList.remove("is-open");
+        toggle.setAttribute("aria-expanded", "false");
+      }
+    }
+
+    nav._portfolioSyncMobileNav = syncState;
+    nav._portfolioSetMobileNavOpen = setMobileMenuOpen;
+
+    toggle.addEventListener("click", () => {
+      setMobileMenuOpen(toggle.getAttribute("aria-expanded") !== "true");
+    });
+
+    navLinks.addEventListener("click", (event) => {
+      if (event.target.closest("a, [data-lang-option]")) {
+        setMobileMenuOpen(false);
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!nav.contains(event.target)) {
+        setMobileMenuOpen(false);
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && nav.classList.contains("is-open")) {
+        setMobileMenuOpen(false);
+        toggle.focus();
+      }
+    });
+
+    const closeForViewportChange = () => setMobileMenuOpen(false);
+    if (mobileQuery.addEventListener) {
+      mobileQuery.addEventListener("change", closeForViewportChange);
+    } else if (mobileQuery.addListener) {
+      mobileQuery.addListener(closeForViewportChange);
+    }
+
+    syncState();
+  }
+
+  function syncMobileNavigation() {
+    document.querySelectorAll(".nav").forEach((nav) => {
+      if (typeof nav._portfolioSyncMobileNav === "function") {
+        nav._portfolioSyncMobileNav();
+      }
+    });
+  }
+
+  function updateMobileNavigationLabels() {
+    const copy = getCopy();
+    document.querySelectorAll(".mobile-nav-toggle").forEach((toggle) => {
+      const expanded = toggle.getAttribute("aria-expanded") === "true";
+      toggle.setAttribute("aria-label", expanded ? copy.common.menuClose : copy.common.menuOpen);
     });
   }
 
@@ -484,6 +594,8 @@
     setText('.nav-links a[href$="#projects"]', copy.common.projects);
     setText('.nav-links a[href$="#contact"]', copy.common.contact);
     updateLanguageSwitch();
+    updateMobileNavigationLabels();
+    syncMobileNavigation();
   }
 
   function applyHead(title, description) {
@@ -600,6 +712,7 @@
   }
 
   function applyTranslations() {
+    setupMobileNavigation();
     injectLanguageSwitch();
     applyCommon();
     if (document.body.classList.contains("case-page")) {
