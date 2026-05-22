@@ -480,10 +480,37 @@
     nav.classList.add("is-mobile-enhanced");
     if (!navLinks.id) navLinks.id = "portfolio-mobile-nav";
 
+    const overlay = document.createElement("div");
+    overlay.className = "mobile-nav-overlay";
+    overlay.setAttribute("data-mobile-nav-overlay", "");
+    overlay.setAttribute("aria-hidden", "true");
+
+    const panel = document.createElement("aside");
+    panel.className = "mobile-nav-panel";
+    panel.id = "portfolio-mobile-panel";
+    panel.setAttribute("aria-hidden", "true");
+    panel.setAttribute("aria-label", "Mobile navigation");
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "mobile-nav-panel-close";
+    closeButton.innerHTML = `
+      <span class="mobile-nav-panel-close-line" aria-hidden="true"></span>
+      <span class="mobile-nav-panel-close-line" aria-hidden="true"></span>
+    `;
+
+    const panelLinks = document.createElement("div");
+    panelLinks.className = "mobile-nav-panel-links";
+    navLinks.querySelectorAll("a").forEach((link) => {
+      panelLinks.appendChild(link.cloneNode(true));
+    });
+    panel.append(closeButton, panelLinks);
+    document.body.append(overlay, panel);
+
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "mobile-nav-toggle";
-    toggle.setAttribute("aria-controls", navLinks.id);
+    toggle.setAttribute("aria-controls", `${navLinks.id} ${panel.id}`);
     toggle.setAttribute("aria-expanded", "false");
     toggle.innerHTML = `
       <span class="mobile-nav-toggle-line" aria-hidden="true"></span>
@@ -492,7 +519,8 @@
     `;
     nav.insertBefore(toggle, navLinks);
 
-    const mobileQuery = window.matchMedia("(max-width: 760px)");
+    const mobileQuery = window.matchMedia("(max-width: 760px), (max-width: 920px) and (max-height: 560px) and (orientation: landscape)");
+    const sidePanelQuery = window.matchMedia("(max-width: 920px) and (max-height: 560px) and (orientation: landscape)");
 
     function setMobileMenuOpen(open) {
       const shouldOpen = Boolean(open) && mobileQuery.matches;
@@ -504,18 +532,40 @@
 
     function syncState() {
       const isMobile = mobileQuery.matches;
+      const isSidePanel = sidePanelQuery.matches;
       const isOpen = isMobile && nav.classList.contains("is-open");
-      navLinks.setAttribute("aria-hidden", isMobile && !isOpen ? "true" : "false");
-      navLinks.querySelectorAll("a, button").forEach((item) => {
-        if (isMobile && !isOpen) {
+      nav.classList.toggle("is-side-panel-mode", isSidePanel);
+      document.body.classList.toggle("mobile-nav-open", isSidePanel && isOpen);
+
+      navLinks.setAttribute("aria-hidden", isMobile && !isSidePanel && !isOpen ? "true" : "false");
+      navLinks.querySelectorAll("a").forEach((item) => {
+        if (isSidePanel || (isMobile && !isOpen)) {
           item.setAttribute("tabindex", "-1");
         } else {
           item.removeAttribute("tabindex");
         }
       });
+      navLinks.querySelectorAll("button").forEach((item) => {
+        if (isMobile && !isSidePanel && !isOpen) {
+          item.setAttribute("tabindex", "-1");
+        } else {
+          item.removeAttribute("tabindex");
+        }
+      });
+
+      panel.setAttribute("aria-hidden", isSidePanel && isOpen ? "false" : "true");
+      panel.querySelectorAll("a, button").forEach((item) => {
+        if (isSidePanel && isOpen) {
+          item.removeAttribute("tabindex");
+        } else {
+          item.setAttribute("tabindex", "-1");
+        }
+      });
+
       if (!isMobile) {
         nav.classList.remove("is-open");
         toggle.setAttribute("aria-expanded", "false");
+        document.body.classList.remove("mobile-nav-open");
       }
     }
 
@@ -532,8 +582,17 @@
       }
     });
 
+    panel.addEventListener("click", (event) => {
+      if (event.target.closest("a")) {
+        setMobileMenuOpen(false);
+      }
+    });
+
+    closeButton.addEventListener("click", () => setMobileMenuOpen(false));
+    overlay.addEventListener("click", () => setMobileMenuOpen(false));
+
     document.addEventListener("click", (event) => {
-      if (!nav.contains(event.target)) {
+      if (!nav.contains(event.target) && !panel.contains(event.target)) {
         setMobileMenuOpen(false);
       }
     });
@@ -546,11 +605,13 @@
     });
 
     const closeForViewportChange = () => setMobileMenuOpen(false);
-    if (mobileQuery.addEventListener) {
-      mobileQuery.addEventListener("change", closeForViewportChange);
-    } else if (mobileQuery.addListener) {
-      mobileQuery.addListener(closeForViewportChange);
-    }
+    [mobileQuery, sidePanelQuery].forEach((query) => {
+      if (query.addEventListener) {
+        query.addEventListener("change", closeForViewportChange);
+      } else if (query.addListener) {
+        query.addListener(closeForViewportChange);
+      }
+    });
 
     syncState();
   }
@@ -568,6 +629,12 @@
     document.querySelectorAll(".mobile-nav-toggle").forEach((toggle) => {
       const expanded = toggle.getAttribute("aria-expanded") === "true";
       toggle.setAttribute("aria-label", expanded ? copy.common.menuClose : copy.common.menuOpen);
+    });
+    document.querySelectorAll(".mobile-nav-panel").forEach((panel) => {
+      panel.setAttribute("aria-label", copy.common.navLabel);
+    });
+    document.querySelectorAll(".mobile-nav-panel-close").forEach((button) => {
+      button.setAttribute("aria-label", copy.common.menuClose);
     });
   }
 
@@ -593,6 +660,10 @@
     setText('.nav-links a[href$="#skills"]', copy.common.skills);
     setText('.nav-links a[href$="#projects"]', copy.common.projects);
     setText('.nav-links a[href$="#contact"]', copy.common.contact);
+    setText('.mobile-nav-panel-links a[href$="#about"]', copy.common.about);
+    setText('.mobile-nav-panel-links a[href$="#skills"]', copy.common.skills);
+    setText('.mobile-nav-panel-links a[href$="#projects"]', copy.common.projects);
+    setText('.mobile-nav-panel-links a[href$="#contact"]', copy.common.contact);
     updateLanguageSwitch();
     updateMobileNavigationLabels();
     syncMobileNavigation();
